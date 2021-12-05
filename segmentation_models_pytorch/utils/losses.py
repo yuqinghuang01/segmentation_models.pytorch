@@ -43,8 +43,19 @@ class DiceLoss(base.Loss):
         )
 
 
-class L1Loss(nn.L1Loss, base.Loss):
-    pass
+class L1Loss(base.Loss):
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )
 
 
 class MSELoss(nn.MSELoss, base.Loss):

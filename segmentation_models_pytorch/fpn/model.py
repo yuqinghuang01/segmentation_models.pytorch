@@ -91,3 +91,5 @@ class FPN(SegmentationModel):
 
         self.name = "fpn-{}".format(encoder_name)
         self.initialize()
+
+        print("Done Initializing FPN")

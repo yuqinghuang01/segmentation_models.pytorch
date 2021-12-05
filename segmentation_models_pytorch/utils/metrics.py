@@ -97,3 +97,147 @@ class Precision(base.Metric):
             threshold=self.threshold,
             ignore_channels=self.ignore_channels,
         )
+
+
+class L1Score_left_object(base.Metric):
+    __name__ = 'L1_left_object'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_object(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[0]
+
+
+class L1Score_top_object(base.Metric):
+    __name__ = 'L1_top_object'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_object(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[1]
+
+
+class L1Score_right_object(base.Metric):
+    __name__ = 'L1_right_object'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_object(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[2]
+
+
+class L1Score_bot_object(base.Metric):
+    __name__ = 'L1_bot_object'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_object(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[3]
+
+
+class L1Score_left_background(base.Metric):
+    __name__ = 'L1_left_background'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_background(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[0]
+
+
+class L1Score_top_background(base.Metric):
+    __name__ = 'L1_top_background'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_background(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[1]
+
+
+class L1Score_right_background(base.Metric):
+    __name__ = 'L1_right_background'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_background(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[2]
+
+
+class L1Score_bot_background(base.Metric):
+    __name__ = 'L1_bot_background'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L1_background(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )[3]
+
+
+class L2Score(base.Metric):
+    __name__ = 'L2_score'
+    
+    def __init__(self, activation=None, ignore_channels=None, **kwargs):
+        super().__init__(**kwargs)
+        self.activation = Activation(activation)
+        self.ignore_channels = ignore_channels
+
+    def forward(self, y_pr, y_gt):
+        y_pr = self.activation(y_pr)
+        return F.L2(
+            y_pr, y_gt,
+            ignore_channels=self.ignore_channels,
+        )
