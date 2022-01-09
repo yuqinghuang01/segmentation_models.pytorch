@@ -9,7 +9,6 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Will use only the first GPU device
 
 import numpy as np
-import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -50,14 +49,18 @@ def viz_boundary(y, id, folder_name):
     im = plt.imread(os.path.join(DATA_DIR, 'SegmentationObject', id[:-3]+'.png'))
     im = np.where(im == 0, 255, im) # convert the background pixels to white (for visualization)
     res_im = resize(im, dim)
+
+    mask = np.array(Image.open(os.path.join(DATA_DIR, 'SegmentationObject', id[:-3]+'.png')).resize(dim, resample=Image.NEAREST), dtype=int)
+    mask = np.where(mask == 255, 0, mask) # convert the void pixels to background
+
     plt.figure(figsize = (20, 20))
     l_viz, t_viz, r_viz, b_viz = np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2]))
     for i in range(y.shape[1]):
         for j in range(y.shape[2]):
-            l_viz[i,max(0, int(j - y[0,i,j]))] += 1 if y[0,i,j] < 256 else 0
-            t_viz[max(0, int(i - y[1,i,j])),j] += 1 if y[1,i,j] < 256 else 0
-            r_viz[i,min(y.shape[2]-1, int(j + y[2,i,j]))] += 1 if y[2,i,j] < 256 else 0
-            b_viz[min(y.shape[1]-1, int(i + y[3,i,j])),j] += 1 if y[3,i,j] < 256 else 0
+            l_viz[i,max(0, int(j - y[0,i,j]))] += 1 if mask[i,j] != 0 else 0
+            t_viz[max(0, int(i - y[1,i,j])),j] += 1 if mask[i,j] != 0 else 0
+            r_viz[i,min(y.shape[2]-1, int(j + y[2,i,j]))] += 1 if mask[i,j] != 0 else 0
+            b_viz[min(y.shape[1]-1, int(i + y[3,i,j])),j] += 1 if mask[i,j] != 0 else 0
     plt.subplot(221, title='left boundary visualization')
     plt.imshow(res_im, interpolation='nearest', alpha=0.4)
     plt.xticks([])
@@ -278,7 +281,7 @@ valid_epoch = smp.utils.train.ValidEpoch(
 
 # train model for 40 epochs
 
-min_score = 100000000
+min_score = 300
 '''plot the training and validation losses
    sanity check if they are decreasing over epochs
 '''
@@ -293,10 +296,10 @@ for i in range(0, 40):
     valid_logs = valid_epoch.run(valid_loader)
     train_loss.append(train_logs['l1_loss'])
     valid_loss.append(valid_logs['l1_loss'])
-    l1_left_object.append(valid_logs['l1_left_object'])
-    l1_top_object.append(valid_logs['l1_top_object'])
-    l1_right_object.append(valid_logs['l1_right_object'])
-    l1_bot_object.append(valid_logs['l1_bottom_object'])
+    l1_left_object.append(valid_logs['L1_left_object'])
+    l1_top_object.append(valid_logs['L1_top_object'])
+    l1_right_object.append(valid_logs['L1_right_object'])
+    l1_bot_object.append(valid_logs['L1_bot_object'])
     
     # do something (save model, change lr, etc.)
     if valid_logs['l1_loss'] < min_score:

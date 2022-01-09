@@ -51,12 +51,14 @@ def L1(pr, gt, ignore_channels=None, ignore_val=None):
     """
     pr, gt = _take_channels(pr, gt, ignore_channels=ignore_channels)
 
-    object_mask = ~torch.eq(gt, ignore_val)
-    pr = torch.mul(pr, object_mask)
-    gt = torch.mul(gt, object_mask)
+    kept_mask = torch.ones(pr.shape)
+    if not ignore_val:
+        kept_mask = ~torch.eq(gt, ignore_val)
+        pr = torch.mul(pr, kept_mask)
+        gt = torch.mul(gt, kept_mask)
 
     abs_diff = torch.abs(torch.sub(pr, gt))
-    score = torch.sum(abs_diff, dtype=pr.dtype)
+    score = torch.sum(abs_diff, dtype=pr.dtype) / torch.sum(kept_mask, dtype=pr.dtype)
     return score
 
 

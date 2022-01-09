@@ -9,7 +9,6 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '0' # Will use only the first GPU device
 
 import numpy as np
-import cv2
 from PIL import Image
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -54,12 +53,12 @@ def viz_boundary(y, id, folder_name):
     plt.imshow(res_im, interpolation='nearest', alpha=0.4)
     plt.xticks([])
     plt.yticks([])
-    plt.imshow(y[0], cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(l_viz)))
+    plt.imshow(y[0], cmap='gray_r')
     plt.subplot(122, title='vertical boundary visualization')
     plt.imshow(res_im, interpolation='nearest', alpha=0.4)
     plt.xticks([])
     plt.yticks([])
-    plt.imshow(y[1], cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(t_viz)))
+    plt.imshow(y[1], cmap='gray_r')
     plt.savefig('./' + folder_name + '/' + id + '.png', dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -243,7 +242,7 @@ valid_epoch = smp.utils.train.ValidEpoch(
 
 # train model for 40 epochs
 
-min_score = 100000000
+min_score = 1
 '''plot the training and validation losses
    sanity check if they are decreasing over epochs
 '''
@@ -296,10 +295,6 @@ for idx in range(10):
     x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
     pr_mask = best_model.predict(x_tensor)
     pr_mask = (pr_mask.squeeze().cpu().numpy().round())
-
-    # print('gt min :' + str(np.amin(gt_mask)) + ' max : ' + str(np.amax(gt_mask)))
-    # print('pred min :' + str(np.amin(pr_mask)) + ' max : ' + str(np.amax(pr_mask)))
-    # print(pr_mask)
 
     viz_boundary(gt_mask, str(ids[i]) + '_gt', 'val_viz')
     viz_boundary(pr_mask, str(ids[i]) + '_pr', 'val_viz')
