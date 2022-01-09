@@ -26,6 +26,7 @@ valid_ids = os.path.join(DATA_DIR, 'ImageSets/Segmentation/val.txt')
 
 # some useful constants
 dim = (256, 256) # resize all images to dim=(256, 256)
+background_dist_const = 256 # gt val to indicate the pixel is a background
 
 # ========== data loader ==========
 '''
@@ -37,29 +38,46 @@ from torch.utils.data import Dataset as BaseDataset
 
 
 def viz_boundary(y, id, folder_name):
-    """Visualize boundaries
+    """Visualize boundaries based on (l, t, r, b)
 
     Args:
-        y: array of size [(2, H, W)], with the first dimension being (hor_boundary, ver_boundary)
+        y: array of size [(4, H, W)], with the first dimension being (l, t, r, b) distances
     Return:
-        2 plots visualization of horizontal and vertical boundaries
+        4 plots visualization of the 'counts' of each pixel, where others think of it as a boundary
     
     """
     # read in ground truth, display as background in plots
     im = plt.imread(os.path.join(DATA_DIR, 'SegmentationObject', id[:-3]+'.png'))
     im = np.where(im == 0, 255, im) # convert the background pixels to white (for visualization)
     res_im = resize(im, dim)
-    plt.figure(figsize = (20, 10))
-    plt.subplot(121, title='horizontal boundary visualization')
+    plt.figure(figsize = (20, 20))
+    l_viz, t_viz, r_viz, b_viz = np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2])), np.zeros((y.shape[1], y.shape[2]))
+    for i in range(y.shape[1]):
+        for j in range(y.shape[2]):
+            l_viz[i,max(0, int(j - y[0,i,j]))] += 1 if y[0,i,j] < 256 else 0
+            t_viz[max(0, int(i - y[1,i,j])),j] += 1 if y[1,i,j] < 256 else 0
+            r_viz[i,min(y.shape[2]-1, int(j + y[2,i,j]))] += 1 if y[2,i,j] < 256 else 0
+            b_viz[min(y.shape[1]-1, int(i + y[3,i,j])),j] += 1 if y[3,i,j] < 256 else 0
+    plt.subplot(221, title='left boundary visualization')
     plt.imshow(res_im, interpolation='nearest', alpha=0.4)
     plt.xticks([])
     plt.yticks([])
-    plt.imshow(y[0], cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(l_viz)))
-    plt.subplot(122, title='vertical boundary visualization')
+    plt.imshow(l_viz, cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(l_viz)))
+    plt.subplot(222, title='top boundary visualization')
     plt.imshow(res_im, interpolation='nearest', alpha=0.4)
     plt.xticks([])
     plt.yticks([])
-    plt.imshow(y[1], cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(t_viz)))
+    plt.imshow(t_viz, cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(t_viz)))
+    plt.subplot(223, title='right boundary visualization')
+    plt.imshow(res_im, interpolation='nearest', alpha=0.4)
+    plt.xticks([])
+    plt.yticks([])
+    plt.imshow(r_viz, cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(r_viz)))
+    plt.subplot(224, title='bottom boundary visualization')
+    plt.imshow(res_im, interpolation='nearest', alpha=0.4)
+    plt.xticks([])
+    plt.yticks([])
+    plt.imshow(b_viz, cmap='gray_r', interpolation='nearest', norm=LogNorm(vmin=0, vmax=np.amax(b_viz)))
     plt.savefig('./' + folder_name + '/' + id + '.png', dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -103,26 +121,38 @@ class Dataset(BaseDataset):
 
         mask = np.where(mask == 255, 0, mask) # convert the void pixels to background
         # print(np.unique(mask))
-        hor_boundary, ver_boundary = np.zeros(mask.shape), np.zeros(mask.shape)
+        l, t, r, b = np.zeros(mask.shape), np.zeros(mask.shape), np.zeros(mask.shape), np.zeros(mask.shape)
 
-        # get boundary info from mask
+        # get l, t, r, b distance info from mask
         # horizontal scanline
         for i in range(mask.shape[0]):
             cur_label = mask[i,0]
+            last_pos = 0
             for j in range(1, mask.shape[1]):
                 if mask[i,j] != cur_label:
                     cur_label = mask[i,j]
-                    # update hor_boundary
-                    hor_boundary[i,j] = 1  
+                    last_pos = j
+                # update l
+                l[i,j] = j - last_pos
+                # update r
+                r[i,last_pos:j] += 1    
         # vertical scanline
         for j in range(mask.shape[1]):
             cur_label = mask[0,j]
+            last_pos = 0
             for i in range(1, mask.shape[0]):
                 if mask[i,j] != cur_label:
                     cur_label = mask[i,j]
-                    # update t
-                    ver_boundary[i,j] = 1
-        mask = np.stack((hor_boundary, ver_boundary), axis=-1).astype('float')
+                    last_pos = i
+                # update t
+                t[i,j] = i - last_pos
+                # update b
+                b[last_pos:i,j] += 1
+        l[mask == 0] = background_dist_const
+        t[mask == 0] = background_dist_const
+        r[mask == 0] = background_dist_const
+        b[mask == 0] = background_dist_const
+        mask = np.stack((l, t, r, b), axis=-1).astype('float')
         
         # apply augmentations
         if self.augmentation:
@@ -182,14 +212,14 @@ ENCODER_WEIGHTS = 'imagenet'
 pascal_class = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
                 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
                 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor'] # 20 classes (excluding background)
-ACTIVATION = 'sigmoid' # for 2 classification heads
+ACTIVATION = 'relu' # for 4 regression heads
 DEVICE = 'cuda'
 
 # create segmentation model with pretrained encoder
 model = smp.FPN(
     encoder_name=ENCODER,
     encoder_weights=ENCODER_WEIGHTS,
-    classes=2, # hor_boundary, ver_boundary (2 output channels)
+    classes=4, # l, t, r, b distances (4 output channels)
     activation=ACTIVATION,
 )
 
@@ -215,8 +245,13 @@ valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_worker
 # Dice/F1 score - https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
 # IoU/Jaccard score - https://en.wikipedia.org/wiki/Jaccard_index
 
-loss = smp.utils.losses.L1Loss()
-metrics = []
+loss = smp.utils.losses.L1Loss(ignore_val=background_dist_const)
+metrics = [
+    smp.utils.metrics.L1Score_left_object(),
+    smp.utils.metrics.L1Score_top_object(),
+    smp.utils.metrics.L1Score_right_object(),
+    smp.utils.metrics.L1Score_bot_object(),
+]
 
 optimizer = torch.optim.Adam([ 
     dict(params=model.parameters(), lr=0.0001),
@@ -249,15 +284,19 @@ min_score = 100000000
 '''
 train_loss = []
 valid_loss = []
+l1_left_object, l1_top_object, l1_right_object, l1_bot_object = [], [], [], []
 epochs = range(0, 40)
 
 for i in range(0, 40):
-    
     print('\nEpoch: {}'.format(i))
     train_logs = train_epoch.run(train_loader)
     valid_logs = valid_epoch.run(valid_loader)
     train_loss.append(train_logs['l1_loss'])
     valid_loss.append(valid_logs['l1_loss'])
+    l1_left_object.append(valid_logs['l1_left_object'])
+    l1_top_object.append(valid_logs['l1_top_object'])
+    l1_right_object.append(valid_logs['l1_right_object'])
+    l1_bot_object.append(valid_logs['l1_bottom_object'])
     
     # do something (save model, change lr, etc.)
     if valid_logs['l1_loss'] < min_score:
@@ -279,6 +318,18 @@ plt.ylabel('loss', fontsize=12)
 plt.savefig('./loss.png', dpi=300, bbox_inches='tight')
 plt.close()
 
+# save the plots of l1-metrics on validation set
+plt.plot(epochs, l1_left_object, label='l1_left_object', color='blue')
+plt.plot(epochs, l1_top_object, label='l1_top_object', color='blue')
+plt.plot(epochs, l1_right_object, label='l1_right_object', color='blue')
+plt.plot(epochs, l1_bot_object, label='l1_bot_object', color='blue')
+plt.title('metrics visualization', fontsize=12)
+plt.legend(loc='upper right')
+plt.xlabel('epochs', fontsize=12)
+plt.ylabel('metrics', fontsize=12)
+plt.savefig('./metrics.png', dpi=300, bbox_inches='tight')
+plt.close()
+
 
 # ========== visualize predictions ==========
 # load best saved checkpoint
@@ -296,10 +347,6 @@ for idx in range(10):
     x_tensor = torch.from_numpy(image).to(DEVICE).unsqueeze(0)
     pr_mask = best_model.predict(x_tensor)
     pr_mask = (pr_mask.squeeze().cpu().numpy().round())
-
-    # print('gt min :' + str(np.amin(gt_mask)) + ' max : ' + str(np.amax(gt_mask)))
-    # print('pred min :' + str(np.amin(pr_mask)) + ' max : ' + str(np.amax(pr_mask)))
-    # print(pr_mask)
 
     viz_boundary(gt_mask, str(ids[i]) + '_gt', 'val_viz')
     viz_boundary(pr_mask, str(ids[i]) + '_pr', 'val_viz')

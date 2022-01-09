@@ -41,7 +41,7 @@ def iou(pr, gt, eps=1e-7, threshold=None, ignore_channels=None):
 jaccard = iou
 
 
-def L1(pr, gt, ignore_channels=None):
+def L1(pr, gt, ignore_channels=None, ignore_val=None):
     """Calculate L1 score between ground truth and prediction
     Args:
         pr (torch.Tensor): predicted tensor
@@ -50,6 +50,10 @@ def L1(pr, gt, ignore_channels=None):
         float: L1 score
     """
     pr, gt = _take_channels(pr, gt, ignore_channels=ignore_channels)
+
+    object_mask = ~torch.eq(gt, ignore_val)
+    pr = torch.mul(pr, object_mask)
+    gt = torch.mul(gt, object_mask)
 
     abs_diff = torch.abs(torch.sub(pr, gt))
     score = torch.sum(abs_diff, dtype=pr.dtype)
